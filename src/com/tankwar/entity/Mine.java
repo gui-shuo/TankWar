@@ -51,10 +51,13 @@ public class Mine extends Entity {
     }
     
     /**
-     * 检查是否触发
+     * 检查是否触发（只对敌人触发，不对友军触发）
      */
     public boolean checkTrigger(Entity target) {
-        if (!armed || target == owner) return false;
+        if (!armed) return false;
+        // 不对所有者和友军（PlayerTank）触发
+        if (target == owner) return false;
+        if (owner instanceof PlayerTank && target instanceof PlayerTank) return false;
         return distanceTo(target) < triggerRadius + target.getWidth() / 2.0;
     }
     

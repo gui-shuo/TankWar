@@ -11,7 +11,6 @@ public class WeatherSystem {
     public enum WeatherType {
         CLEAR("晴朗", "正常战斗环境"),
         RAIN("暴雨", "移动变滑，可能产生积水"),
-        FOG("浓雾", "战争迷雾，仅可见周围区域"),
         SANDSTORM("沙尘暴", "持续轻微扣血");
         
         public final String name;
@@ -128,9 +127,6 @@ public class WeatherSystem {
             case RAIN:
                 renderRain(g);
                 break;
-            case FOG:
-                renderFog(g, playerX, playerY);
-                break;
             case SANDSTORM:
                 renderSandstorm(g);
                 break;
@@ -154,30 +150,6 @@ public class WeatherSystem {
         // 整体蓝色覆盖
         g.setColor(new Color(100, 150, 200, 30));
         g.fillRect(0, 0, Constants.GAME_WIDTH, Constants.GAME_HEIGHT);
-    }
-    
-    private void renderFog(Graphics2D g, double playerX, double playerY) {
-        // 创建径向渐变遮罩
-        int width = Constants.GAME_WIDTH;
-        int height = Constants.GAME_HEIGHT;
-        
-        // 雾层
-        g.setColor(new Color(100, 100, 110, 200));
-        g.fillRect(0, 0, width, height);
-        
-        // 玩家周围透明区域（使用清除）
-        Graphics2D g2 = (Graphics2D) g.create();
-        g2.setComposite(AlphaComposite.Clear);
-        g2.fillOval((int)(playerX - fogRadius), (int)(playerY - fogRadius), 
-                   fogRadius * 2, fogRadius * 2);
-        g2.dispose();
-        
-        // 渐变边缘
-        for (int r = fogRadius; r > fogRadius - 30; r -= 5) {
-            int alpha = (int)(200 * (1 - (float)(r - fogRadius + 30) / 30));
-            g.setColor(new Color(100, 100, 110, alpha));
-            g.drawOval((int)(playerX - r), (int)(playerY - r), r * 2, r * 2);
-        }
     }
     
     private void renderSandstorm(Graphics2D g) {
@@ -211,15 +183,6 @@ public class WeatherSystem {
             return 1;  // 每次调用扣1点血
         }
         return 0;
-    }
-    
-    /**
-     * 检查目标是否在雾中可见
-     */
-    public boolean isVisibleInFog(double viewerX, double viewerY, double targetX, double targetY) {
-        if (currentWeather != WeatherType.FOG) return true;
-        double dist = Math.sqrt(Math.pow(targetX - viewerX, 2) + Math.pow(targetY - viewerY, 2));
-        return dist <= fogRadius;
     }
     
     public WeatherType getCurrentWeather() { return currentWeather; }

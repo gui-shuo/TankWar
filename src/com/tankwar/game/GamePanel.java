@@ -331,7 +331,15 @@ public class GamePanel extends JPanel {
             }
         }
         
-        // 切换武器
+        // 技能3：K键主动技能（护盾/时停）
+        if (input.isPlayer1Skill3()) {
+            if (player1.useActiveSkill()) {
+                // 激活护盾，短暂无敌
+                player1.setInvincible(3000);  // 3秒无敌护盾
+            }
+        }
+        
+        // 切换武器（Tab键）
         if (input.isSwitchWeapon()) {
             player1.switchWeapon();
         }
@@ -415,6 +423,10 @@ public class GamePanel extends JPanel {
                 continue;
             }
             
+            // 判断是否为友军子弹（不伤害己方基地）
+            Entity bulletOwner = bullet.getOwner();
+            boolean isFriendlyBullet = (bulletOwner instanceof PlayerTank) || (bulletOwner instanceof Turret);
+            
             // 子弹与地图碰撞
             List<Tile> hitTiles = collisionSystem.checkBulletMapCollision(bullet);
             for (Tile tile : hitTiles) {
@@ -432,6 +444,11 @@ public class GamePanel extends JPanel {
                         bullet.pierce();
                     }
                     continue;
+                }
+                
+                // 友军子弹不伤害基地
+                if (tile.getType() == TileType.BASE && isFriendlyBullet) {
+                    continue;  // 跳过，不伤害己方基地
                 }
                 
                 // 可破坏物
@@ -458,8 +475,8 @@ public class GamePanel extends JPanel {
                 continue;
             }
             
-            // 子弹与玩家碰撞
-            if (player1 != null && player1.isAlive() && !(bullet.getOwner() instanceof PlayerTank)) {
+            // 子弹与玩家碰撞（排除友军火力 - 使用已定义的变量）
+            if (player1 != null && player1.isAlive() && !isFriendlyBullet) {
                 if (bullet.collidesWith(player1)) {
                     boolean died = player1.takeDamage(bullet.getDamage());
                     explosions.add(new Explosion(bullet.getX(), bullet.getY(), false));
@@ -1057,13 +1074,6 @@ public class GamePanel extends JPanel {
         
         // 渲染敌人
         for (EnemyTank enemy : enemies) {
-            // 雾天检查可见性
-            if (weatherSystem.getCurrentWeather() == WeatherSystem.WeatherType.FOG) {
-                if (!weatherSystem.isVisibleInFog(player1.getX(), player1.getY(), 
-                                                  enemy.getX(), enemy.getY())) {
-                    continue;
-                }
-            }
             enemy.render(g);
         }
         
@@ -1080,8 +1090,8 @@ public class GamePanel extends JPanel {
             player2.render(g);
         }
         
-        // 渲染草丛（在坦克之上）
-        // gameMap.renderGrass(g);  // 暂时注释，因为会遮挡
+        // 渲染草丛（在坦克之上，遮挡坦克）
+        gameMap.renderGrass(g);
         
         // 渲染子弹
         for (Bullet bullet : bullets) {

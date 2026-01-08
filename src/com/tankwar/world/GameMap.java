@@ -93,6 +93,7 @@ public class GameMap {
             case 'O': return TileType.BARREL;
             case 'a': return TileType.PORTAL_A;
             case 'b': return TileType.PORTAL_B;
+            case 'I': return TileType.ICE;  // 冰面
             default: return TileType.EMPTY;
         }
     }
@@ -193,7 +194,10 @@ public class GameMap {
     public void render(Graphics2D g) {
         for (int r = 0; r < rows; r++) {
             for (int c = 0; c < cols; c++) {
-                tiles[r][c].render(g);
+                // 草丛单独渲染（在坦克之上），这里跳过
+                if (tiles[r][c].getType() != TileType.GRASS) {
+                    tiles[r][c].render(g);
+                }
             }
         }
     }

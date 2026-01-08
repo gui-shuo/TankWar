@@ -21,8 +21,11 @@ public class PlayerTank extends Tank {
     // 技能系统
     private long lastPhaseTime = 0;
     private long lastEmpTime = 0;
+    private long lastActiveSkillTime = 0;
     private boolean phaseReady = true;
     private boolean empReady = true;
+    private boolean activeSkillReady = true;
+    private static final long ACTIVE_SKILL_COOLDOWN = 8000;  // 8秒冷却
     
     // 芯片增益
     private boolean hasRicochet = false;      // 子弹弹射
@@ -67,6 +70,9 @@ public class PlayerTank extends Tank {
         }
         if (!empReady && now - lastEmpTime >= Constants.SKILL_EMP_COOLDOWN) {
             empReady = true;
+        }
+        if (!activeSkillReady && now - lastActiveSkillTime >= ACTIVE_SKILL_COOLDOWN) {
+            activeSkillReady = true;
         }
     }
     
@@ -156,6 +162,17 @@ public class PlayerTank extends Tank {
         
         empReady = false;
         lastEmpTime = System.currentTimeMillis();
+        return true;
+    }
+    
+    /**
+     * 使用主动技能（K键护盾）
+     */
+    public boolean useActiveSkill() {
+        if (!activeSkillReady || stunned) return false;
+        
+        activeSkillReady = false;
+        lastActiveSkillTime = System.currentTimeMillis();
         return true;
     }
     
@@ -303,4 +320,11 @@ public class PlayerTank extends Tank {
         if (empReady) return 0;
         return Math.max(0, Constants.SKILL_EMP_COOLDOWN - (System.currentTimeMillis() - lastEmpTime));
     }
+    
+    public long getActiveSkillCooldownRemaining() {
+        if (activeSkillReady) return 0;
+        return Math.max(0, ACTIVE_SKILL_COOLDOWN - (System.currentTimeMillis() - lastActiveSkillTime));
+    }
+    
+    public boolean isActiveSkillReady() { return activeSkillReady; }
 }

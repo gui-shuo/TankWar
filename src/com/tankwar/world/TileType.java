@@ -9,6 +9,7 @@ public enum TileType {
     STEEL(true, false, "钢墙"),
     WATER(true, false, "水域"),
     GRASS(false, false, "草丛"),
+    ICE(false, false, "冰面"),  // 冰面：可通行，有滑行效果
     BASE(true, true, "基地"),
     BARREL(true, true, "油桶"),
     PORTAL_A(false, false, "传送门A"),

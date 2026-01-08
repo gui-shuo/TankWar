@@ -160,6 +160,18 @@ public class Tile {
                 g.setColor(Color.WHITE);
                 g.drawOval(x + 5, y + 5, size - 10, size - 10);
                 break;
+                
+            case ICE:
+                // 冰面
+                g.setColor(new Color(180, 220, 255));
+                g.fillRect(x, y, size, size);
+                // 冰纹
+                g.setColor(new Color(220, 240, 255));
+                g.drawLine(x + 2, y + 5, x + size - 5, y + 10);
+                g.drawLine(x + 5, y + size - 8, x + size - 2, y + size - 3);
+                g.setColor(new Color(150, 200, 240));
+                g.drawRect(x, y, size - 1, size - 1);
+                break;
         }
     }
 }

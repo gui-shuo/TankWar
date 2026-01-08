@@ -167,6 +167,11 @@ public class HUD {
         
         renderSkillBar(g, "电磁脉冲 [E]", player.getEmpCooldownRemaining(), 
                       Constants.SKILL_EMP_COOLDOWN, hudX + padding, y, hudWidth - padding * 2);
+        
+        y += 25;
+        
+        renderSkillBar(g, "护盾技能 [K]", player.getActiveSkillCooldownRemaining(), 
+                      8000, hudX + padding, y, hudWidth - padding * 2);
     }
     
     private void renderSkillBar(Graphics2D g, String name, long cooldownRemaining, 

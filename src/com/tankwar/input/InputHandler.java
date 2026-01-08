@@ -102,21 +102,28 @@ public class InputHandler implements KeyListener {
     }
     
     /**
-     * 玩家1技能1（相位移动）
+     * 玩家1技能1（相位移动）- Q键
      */
     public boolean isPlayer1Skill1() {
         return isKeyJustPressed(KeyEvent.VK_Q);
     }
     
     /**
-     * 玩家1技能2（电磁脉冲）
+     * 玩家1技能2（电磁脉冲）- E键
      */
     public boolean isPlayer1Skill2() {
         return isKeyJustPressed(KeyEvent.VK_E);
     }
     
     /**
-     * 切换武器
+     * 玩家1技能3（主动技能）- K键
+     */
+    public boolean isPlayer1Skill3() {
+        return isKeyJustPressed(KeyEvent.VK_K);
+    }
+    
+    /**
+     * 切换武器 - Tab键
      */
     public boolean isSwitchWeapon() {
         return isKeyJustPressed(KeyEvent.VK_TAB);

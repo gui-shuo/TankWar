@@ -194,6 +194,16 @@ public class UIManager {
      * 渲染商店界面
      */
     public void renderShop(Graphics2D g, int playerScore, int selectedIndex) {
+        renderShop(g, playerScore, selectedIndex, 0, 3, 1, 5);
+    }
+    
+    /**
+     * 渲染商店界面（带限制信息）
+     * @param aliveTurrets 场上存活的哨戒炮数量
+     * @param maxTurretsOnMap 场上最大哨戒炮数量
+     */
+    public void renderShop(Graphics2D g, int playerScore, int selectedIndex, 
+                           int aliveTurrets, int maxTurretsOnMap, int wallLevel, int maxWallLevel) {
         int width = Constants.GAME_WIDTH;
         int height = Constants.GAME_HEIGHT;
         
@@ -203,7 +213,7 @@ public class UIManager {
         
         // 商店框
         int boxWidth = 500;
-        int boxHeight = 400;
+        int boxHeight = 420;
         int boxX = (width - boxWidth) / 2;
         int boxY = (height - boxHeight) / 2;
         
@@ -230,14 +240,23 @@ public class UIManager {
         
         y += 50;
         
-        // 商品列表
+        // 商品列表（带限制信息）
+        boolean turretMaxed = aliveTurrets >= maxTurretsOnMap;
+        boolean wallMaxed = wallLevel >= maxWallLevel;
+        
         String[][] items = {
-            {"1. 自动哨戒炮", String.valueOf(Constants.PRICE_TURRET), "部署一座自动攻击炮台"},
-            {"2. 修复围墙", String.valueOf(Constants.PRICE_REPAIR_WALL), "修复已损坏的砖墙"},
-            {"3. 升级围墙", String.valueOf(Constants.PRICE_UPGRADE_WALL), "将砖墙升级为钢墙"},
+            {"1. 自动哨戒炮", String.valueOf(Constants.PRICE_TURRET), 
+             turretMaxed ? "场上已满 (" + aliveTurrets + "/" + maxTurretsOnMap + ")" : 
+                          "部署炮台 (场上" + aliveTurrets + "/" + maxTurretsOnMap + ")"},
+            {"2. 修复围墙", String.valueOf(Constants.PRICE_REPAIR_WALL), "修复基地周围围墙血量"},
+            {"3. 升级围墙", String.valueOf(Constants.PRICE_UPGRADE_WALL), 
+             wallMaxed ? "已达最高等级 Lv." + wallLevel : 
+                        "升级围墙 Lv." + wallLevel + " → Lv." + (wallLevel + 1)},
             {"4. 恢复生命", "200", "恢复50点HP"},
             {"5. 额外武器弹药", "150", "获得各类武器弹药"}
         };
+        
+        boolean[] disabled = {turretMaxed, false, wallMaxed, false, false};
         
         g.setFont(new Font("微软雅黑", Font.PLAIN, 18));
         
@@ -245,25 +264,35 @@ public class UIManager {
             boolean selected = (i == selectedIndex);
             int price = Integer.parseInt(items[i][1]);
             boolean canAfford = playerScore >= price;
+            boolean isDisabled = disabled[i];
             
             // 背景
             if (selected) {
-                g.setColor(new Color(80, 70, 60));
+                g.setColor(isDisabled ? new Color(60, 50, 50) : new Color(80, 70, 60));
                 g.fillRoundRect(boxX + padding - 5, y - 20, boxWidth - padding * 2 + 10, 50, 8, 8);
             }
             
             // 名称
-            g.setColor(selected ? new Color(255, 215, 0) : 
-                      canAfford ? Color.WHITE : new Color(100, 100, 100));
+            if (isDisabled) {
+                g.setColor(new Color(100, 100, 100));
+            } else {
+                g.setColor(selected ? new Color(255, 215, 0) : 
+                          canAfford ? Color.WHITE : new Color(100, 100, 100));
+            }
             g.drawString(items[i][0], boxX + padding, y);
             
             // 价格
-            g.setColor(canAfford ? new Color(100, 255, 100) : new Color(255, 100, 100));
-            String priceText = "$" + items[i][1];
-            g.drawString(priceText, boxX + boxWidth - padding - 80, y);
+            if (isDisabled) {
+                g.setColor(new Color(100, 100, 100));
+                g.drawString("已满", boxX + boxWidth - padding - 80, y);
+            } else {
+                g.setColor(canAfford ? new Color(100, 255, 100) : new Color(255, 100, 100));
+                String priceText = "$" + items[i][1];
+                g.drawString(priceText, boxX + boxWidth - padding - 80, y);
+            }
             
             // 描述
-            g.setColor(new Color(150, 150, 160));
+            g.setColor(isDisabled ? new Color(100, 100, 110) : new Color(150, 150, 160));
             g.setFont(new Font("微软雅黑", Font.PLAIN, 12));
             g.drawString(items[i][2], boxX + padding + 20, y + 18);
             g.setFont(new Font("微软雅黑", Font.PLAIN, 18));

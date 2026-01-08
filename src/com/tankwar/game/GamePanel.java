@@ -76,6 +76,13 @@ public class GamePanel extends JPanel {
     // 沙尘暴伤害计时
     private long lastSandstormDamage = 0;
     
+    // 商店限制
+    private int turretsPurchased = 0;
+    private static final int MAX_TURRETS = 5;  // 总购买上限
+    private static final int MAX_TURRETS_ON_MAP = 3;  // 场上存活上限
+    private int wallLevel = 1;  // 围墙等级 1-5
+    private static final int MAX_WALL_LEVEL = 5;
+    
     public GamePanel(InputHandler input) {
         this.input = input;
         setPreferredSize(new Dimension(Constants.WINDOW_WIDTH, Constants.WINDOW_HEIGHT));
@@ -303,8 +310,37 @@ public class GamePanel extends JPanel {
         // 技能1：相位移动
         if (input.isPlayer1Skill1()) {
             if (player1.usePhaseShift()) {
-                phaseFromX = player1.getX() - player1.getDirection().dx * Constants.PHASE_DISTANCE;
-                phaseFromY = player1.getY() - player1.getDirection().dy * Constants.PHASE_DISTANCE;
+                double targetX = player1.getPhaseTargetX();
+                double targetY = player1.getPhaseTargetY();
+                
+                // 检查目标位置是否有障碍物，逐步回退找到安全位置
+                double safeX = targetX;
+                double safeY = targetY;
+                double startX = player1.getX();
+                double startY = player1.getY();
+                
+                // 从目标位置向起点回退检查
+                for (int i = 10; i >= 0; i--) {
+                    double ratio = i / 10.0;
+                    double checkX = startX + (targetX - startX) * ratio;
+                    double checkY = startY + (targetY - startY) * ratio;
+                    
+                    Rectangle checkBounds = new Rectangle(
+                        (int)(checkX - player1.getWidth()/2),
+                        (int)(checkY - player1.getHeight()/2),
+                        player1.getWidth(), player1.getHeight()
+                    );
+                    
+                    if (!gameMap.isAreaBlocked(checkBounds)) {
+                        safeX = checkX;
+                        safeY = checkY;
+                        break;
+                    }
+                }
+                
+                phaseFromX = player1.getX();
+                phaseFromY = player1.getY();
+                player1.confirmPhaseShift(safeX, safeY);
                 phaseToX = player1.getX();
                 phaseToY = player1.getY();
                 phaseEffectStart = System.currentTimeMillis();
@@ -545,6 +581,21 @@ public class GamePanel extends JPanel {
                 bullet.destroy();
             }
             
+            // 敌方子弹与哨戒炮碰撞
+            if (!isFriendlyBullet) {
+                for (Turret turret : turrets) {
+                    if (turret.isAlive() && bullet.collidesWith(turret)) {
+                        boolean destroyed = turret.takeDamage(bullet.getDamage());
+                        explosions.add(new Explosion(bullet.getX(), bullet.getY(), false));
+                        if (destroyed) {
+                            explosions.add(new Explosion(turret.getX(), turret.getY(), true));
+                        }
+                        bullet.destroy();
+                        break;
+                    }
+                }
+            }
+            
             if (!bullet.isAlive()) {
                 it.remove();
             }
@@ -733,7 +784,8 @@ public class GamePanel extends JPanel {
             Point spawn = spawns.isEmpty() ? new Point(400, 700) : spawns.get(0);
             player1.respawn(spawn.x, spawn.y);
         } else {
-            // 游戏结束
+            // 生命用尽，游戏结束
+            player1.setAlive(false);
             gameState = GameState.GAME_OVER;
         }
     }
@@ -851,18 +903,31 @@ public class GamePanel extends JPanel {
         if (score < prices[index]) return;
         
         switch (index) {
-            case 0:  // 哨戒炮
+            case 0:  // 哨戒炮（场上最多3个）
+                // 检查场上存活的哨戒炮数量
+                int aliveTurrets = 0;
+                for (Turret t : turrets) {
+                    if (t.isAlive()) aliveTurrets++;
+                }
+                if (aliveTurrets >= MAX_TURRETS_ON_MAP) {
+                    return;  // 场上已有太多哨戒炮
+                }
                 // 在玩家附近放置
                 turrets.add(new Turret(player1.getX() + 40, player1.getY(), player1));
+                turretsPurchased++;
                 player1.addScore(-prices[0]);
                 break;
-            case 1:  // 修复围墙
-                // 简化：恢复基地周围的砖墙
-                repairWallsNearBase();
-                player1.addScore(-prices[1]);
+            case 1:  // 修复围墙（每次修复一定血量）
+                if (repairWallsNearBase()) {
+                    player1.addScore(-prices[1]);
+                }
                 break;
-            case 2:  // 升级围墙
+            case 2:  // 升级围墙（5个等级）
+                if (wallLevel >= MAX_WALL_LEVEL) {
+                    return;  // 已达最高等级
+                }
                 upgradeWallsNearBase();
+                wallLevel++;
                 player1.addScore(-prices[2]);
                 break;
             case 3:  // 恢复生命
@@ -878,23 +943,43 @@ public class GamePanel extends JPanel {
         }
     }
     
-    private void repairWallsNearBase() {
+    /**
+     * 修复围墙（每次修复一定血量，返回是否有修复）
+     */
+    private boolean repairWallsNearBase() {
         Point base = gameMap.getBasePosition();
-        if (base == null) return;
+        if (base == null) return false;
         
         int baseRow = base.y / Constants.TILE_SIZE;
         int baseCol = base.x / Constants.TILE_SIZE;
+        boolean repaired = false;
         
         for (int r = baseRow - 2; r <= baseRow + 2; r++) {
             for (int c = baseCol - 2; c <= baseCol + 2; c++) {
                 Tile tile = gameMap.getTile(r, c);
-                if (tile != null && tile.getType() == TileType.EMPTY) {
-                    gameMap.setTileType(r, c, TileType.BRICK);
+                if (tile != null) {
+                    // 如果是空地，放置1级围墙
+                    if (tile.getType() == TileType.EMPTY) {
+                        gameMap.setTileType(r, c, TileType.BRICK);
+                        tile.setHp(2);  // 初始血量
+                        repaired = true;
+                    }
+                    // 如果是围墙，恢复血量（每次+2）
+                    else if (tile.getType() == TileType.BRICK || tile.getType() == TileType.STEEL) {
+                        int healed = tile.heal(2);
+                        if (healed > 0) {
+                            repaired = true;
+                        }
+                    }
                 }
             }
         }
+        return repaired;
     }
     
+    /**
+     * 升级围墙（增加血量等级）
+     */
     private void upgradeWallsNearBase() {
         Point base = gameMap.getBasePosition();
         if (base == null) return;
@@ -905,8 +990,9 @@ public class GamePanel extends JPanel {
         for (int r = baseRow - 2; r <= baseRow + 2; r++) {
             for (int c = baseCol - 2; c <= baseCol + 2; c++) {
                 Tile tile = gameMap.getTile(r, c);
-                if (tile != null && tile.getType() == TileType.BRICK) {
-                    gameMap.setTileType(r, c, TileType.STEEL);
+                if (tile != null && (tile.getType() == TileType.BRICK || tile.getType() == TileType.STEEL)) {
+                    // 升级围墙：增加最大血量并恢复满血
+                    tile.upgradeWall();
                 }
             }
         }
@@ -925,6 +1011,10 @@ public class GamePanel extends JPanel {
         levelManager.setMode(gameMode);
         levelManager.reset();
         chipSystem.reset();
+        
+        // 重置商店限制
+        turretsPurchased = 0;
+        wallLevel = 1;
         
         startLevel();
     }
@@ -1024,7 +1114,13 @@ public class GamePanel extends JPanel {
                 if (gameState == GameState.PAUSED) {
                     uiManager.renderPause(g2, pauseMenuIndex);
                 } else if (gameState == GameState.SHOP) {
-                    uiManager.renderShop(g2, player1.getScore(), shopMenuIndex);
+                    // 计算场上存活的哨戒炮数量
+                    int aliveTurrets = 0;
+                    for (Turret t : turrets) {
+                        if (t.isAlive()) aliveTurrets++;
+                    }
+                    uiManager.renderShop(g2, player1.getScore(), shopMenuIndex, 
+                                        aliveTurrets, MAX_TURRETS_ON_MAP, wallLevel, MAX_WALL_LEVEL);
                 } else if (gameState == GameState.CHIP_SELECT || gameState == GameState.LEVEL_COMPLETE) {
                     uiManager.renderLevelComplete(g2, levelManager.getCurrentLevel(), 
                                                   player1.getScore(), enemiesKilledThisLevel);

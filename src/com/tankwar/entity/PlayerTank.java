@@ -51,11 +51,11 @@ public class PlayerTank extends Tank {
         this.speed = Constants.PLAYER_SPEED;
         this.shootCooldown = Constants.PLAYER_SHOOT_COOLDOWN;
         
-        // 初始化弹药
+        // 初始化弹药（给予初始弹药便于测试）
         weaponAmmo[WeaponType.NORMAL.ordinal()] = -1;  // 无限
-        weaponAmmo[WeaponType.LASER.ordinal()] = 0;
-        weaponAmmo[WeaponType.SHOTGUN.ordinal()] = 0;
-        weaponAmmo[WeaponType.MISSILE.ordinal()] = 0;
+        weaponAmmo[WeaponType.LASER.ordinal()] = 5;    // 初始5发激光
+        weaponAmmo[WeaponType.SHOTGUN.ordinal()] = 8;  // 初始8发散弹
+        weaponAmmo[WeaponType.MISSILE.ordinal()] = 3;  // 初始3发导弹
     }
     
     @Override
@@ -138,20 +138,40 @@ public class PlayerTank extends Tank {
     }
     
     /**
-     * 使用相位移动技能
+     * 使用相位移动技能（需要外部检查碰撞）
+     * @return 是否成功使用技能
      */
     public boolean usePhaseShift() {
         if (!phaseReady || stunned) return false;
         
-        x += direction.dx * Constants.PHASE_DISTANCE;
-        y += direction.dy * Constants.PHASE_DISTANCE;
-        clampToMap();
+        // 计算目标位置
+        double targetX = x + direction.dx * Constants.PHASE_DISTANCE;
+        double targetY = y + direction.dy * Constants.PHASE_DISTANCE;
+        
+        // 保存目标位置，由GamePanel检查碰撞后设置
+        phaseTargetX = targetX;
+        phaseTargetY = targetY;
         
         phaseReady = false;
         lastPhaseTime = System.currentTimeMillis();
-        setInvincible(500);  // 闪现后短暂无敌
         
         return true;
+    }
+    
+    // 相位移动目标位置
+    private double phaseTargetX, phaseTargetY;
+    
+    public double getPhaseTargetX() { return phaseTargetX; }
+    public double getPhaseTargetY() { return phaseTargetY; }
+    
+    /**
+     * 确认相位移动到目标位置
+     */
+    public void confirmPhaseShift(double safeX, double safeY) {
+        x = safeX;
+        y = safeY;
+        clampToMap();
+        setInvincible(500);  // 闪现后短暂无敌
     }
     
     /**
@@ -177,17 +197,16 @@ public class PlayerTank extends Tank {
     }
     
     /**
-     * 切换武器
+     * 切换武器（循环切换所有武器类型）
      */
     public void switchWeapon() {
-        WeaponType next = currentWeapon.next();
-        // 跳过没有弹药的武器（除了普通武器）
-        int attempts = 0;
-        while (next != WeaponType.NORMAL && weaponAmmo[next.ordinal()] <= 0 && attempts < 4) {
-            next = next.next();
-            attempts++;
-        }
-        currentWeapon = next;
+        WeaponType[] types = WeaponType.values();
+        int currentIndex = currentWeapon.ordinal();
+        int nextIndex = (currentIndex + 1) % types.length;
+        currentWeapon = types[nextIndex];
+        
+        // 如果当前武器没有弹药且不是普通武器，跳到下一个
+        // 但允许切换到无弹药武器查看（只是不能射击）
     }
     
     /**

@@ -9,6 +9,8 @@ import java.awt.*;
 public class Tile {
     private TileType type;
     private int hp;
+    private int maxHp;
+    private int wallLevel = 1;  // 围墙等级 1-5
     private final int row;
     private final int col;
     
@@ -16,12 +18,14 @@ public class Tile {
         this.type = type;
         this.row = row;
         this.col = col;
-        this.hp = getMaxHp();
+        this.maxHp = getDefaultMaxHp();
+        this.hp = maxHp;
     }
     
-    private int getMaxHp() {
+    private int getDefaultMaxHp() {
         switch (type) {
             case BRICK: return 2;
+            case STEEL: return 4;
             case BASE: return 1;
             case BARREL: return 1;
             default: return 1;
@@ -32,7 +36,44 @@ public class Tile {
     
     public void setType(TileType type) {
         this.type = type;
-        this.hp = getMaxHp();
+        this.maxHp = getDefaultMaxHp();
+        this.hp = maxHp;
+        this.wallLevel = 1;
+    }
+    
+    public void setHp(int hp) {
+        this.hp = Math.min(hp, maxHp);
+    }
+    
+    public int getHp() { return hp; }
+    public int getMaxHp() { return maxHp; }
+    public int getWallLevel() { return wallLevel; }
+    
+    /**
+     * 恢复血量
+     * @return 实际恢复的血量
+     */
+    public int heal(int amount) {
+        int oldHp = hp;
+        hp = Math.min(hp + amount, maxHp);
+        return hp - oldHp;
+    }
+    
+    /**
+     * 升级围墙（增加等级和最大血量）
+     */
+    public void upgradeWall() {
+        if (wallLevel < 5) {
+            wallLevel++;
+            // 每级增加2点最大血量
+            maxHp = getDefaultMaxHp() + (wallLevel - 1) * 2;
+            hp = maxHp;  // 升级后满血
+            
+            // 3级及以上变成钢墙
+            if (wallLevel >= 3 && type == TileType.BRICK) {
+                type = TileType.STEEL;
+            }
+        }
     }
     
     public boolean blocksMovement() {

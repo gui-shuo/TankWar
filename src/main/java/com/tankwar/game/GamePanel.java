@@ -212,7 +212,10 @@ public class GamePanel extends JPanel {
             long now = System.currentTimeMillis();
             if (now - lastSandstormDamage > 1000) {  // 每秒1点伤害
                 if (player1 != null && player1.isAlive()) {
-                    player1.takeDamage(1);
+                    boolean died = player1.takeDamage(1);
+                    if (died) {
+                        handlePlayerDeath();
+                    }
                 }
                 lastSandstormDamage = now;
             }
@@ -804,7 +807,10 @@ public class GamePanel extends JPanel {
             // 范围伤害
             if (player1 != null && player1.isAlive() && 
                 player1.distanceTo(enemy) < 60) {
-                player1.takeDamage(30);
+                boolean died = player1.takeDamage(30);
+                if (died) {
+                    handlePlayerDeath();
+                }
             }
         }
         

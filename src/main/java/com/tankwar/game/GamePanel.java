@@ -90,6 +90,9 @@ public class GamePanel extends JPanel {
         setFocusable(true);
         setDoubleBuffered(true);
         
+        // 禁用Tab键的焦点遍历功能，使其能被KeyListener捕获
+        setFocusTraversalKeysEnabled(false);
+        
         init();
     }
     
@@ -257,8 +260,19 @@ public class GamePanel extends JPanel {
         checkWinLoseConditions();
     }
     
+    // 冰面滑动相关
+    private Direction lastMoveDirection = null;
+    private double slideVelocityX = 0;
+    private double slideVelocityY = 0;
+    private static final double ICE_FRICTION = 0.92;  // 冰面摩擦力（越接近1滑动越久）
+    private static final double ICE_SLIDE_SPEED = 2.5; // 冰面滑动速度
+    
     private void updatePlayer() {
         if (player1 == null || !player1.isAlive()) return;
+        
+        // 检查是否在冰面上
+        Tile currentTile = gameMap.getTileAtPixel(player1.getX(), player1.getY());
+        boolean onIce = currentTile != null && currentTile.getType() == TileType.ICE;
         
         // 移动
         int[] dir = input.getPlayer1Direction();
@@ -271,6 +285,13 @@ public class GamePanel extends JPanel {
             
             if (newDir != null) {
                 player1.setDirection(newDir);
+                lastMoveDirection = newDir;
+                
+                // 在冰面上增加滑动速度
+                if (onIce) {
+                    slideVelocityX += newDir.dx * ICE_SLIDE_SPEED * 0.3;
+                    slideVelocityY += newDir.dy * ICE_SLIDE_SPEED * 0.3;
+                }
                 
                 // 检查碰撞后移动
                 Rectangle nextBounds = player1.getNextBounds(newDir, player1.getSpeed());
@@ -286,16 +307,52 @@ public class GamePanel extends JPanel {
                         mines.add(new Mine(player1.getX(), player1.getY(), player1));
                         player1.markMineDropped();
                     }
-                    
-                    // 检查传送门
-                    if (player1.canTeleport()) {
-                        Point teleportDest = collisionSystem.checkPortalCollision(player1);
-                        if (teleportDest != null) {
-                            player1.setPosition(teleportDest.x, teleportDest.y);
-                            player1.markTeleported();
-                        }
-                    }
                 }
+            }
+        }
+        
+        // 冰面滑动效果（即使没有按键也继续滑动）
+        if (onIce && (Math.abs(slideVelocityX) > 0.1 || Math.abs(slideVelocityY) > 0.1)) {
+            // 计算滑动后的位置
+            double newX = player1.getX() + slideVelocityX;
+            double newY = player1.getY() + slideVelocityY;
+            
+            Rectangle slideBounds = new Rectangle(
+                (int)(newX - player1.getWidth()/2),
+                (int)(newY - player1.getHeight()/2),
+                player1.getWidth(), player1.getHeight()
+            );
+            
+            boolean slideBlocked = collisionSystem.checkTankMapCollision(player1, slideBounds);
+            slideBlocked = slideBlocked || collisionSystem.checkTankTankCollision(player1, slideBounds, enemies);
+            
+            if (!slideBlocked) {
+                player1.setX(newX);
+                player1.setY(newY);
+                player1.clampToMap();
+            } else {
+                // 撞墙停止滑动
+                slideVelocityX = 0;
+                slideVelocityY = 0;
+            }
+            
+            // 应用摩擦力减速
+            slideVelocityX *= ICE_FRICTION;
+            slideVelocityY *= ICE_FRICTION;
+        } else if (!onIce) {
+            // 离开冰面快速停止
+            slideVelocityX *= 0.5;
+            slideVelocityY *= 0.5;
+            if (Math.abs(slideVelocityX) < 0.1) slideVelocityX = 0;
+            if (Math.abs(slideVelocityY) < 0.1) slideVelocityY = 0;
+        }
+        
+        // 检查传送门
+        if (player1.canTeleport()) {
+            Point teleportDest = collisionSystem.checkPortalCollision(player1);
+            if (teleportDest != null) {
+                player1.setPosition(teleportDest.x, teleportDest.y);
+                player1.markTeleported();
             }
         }
         
@@ -958,14 +1015,13 @@ public class GamePanel extends JPanel {
             for (int c = baseCol - 2; c <= baseCol + 2; c++) {
                 Tile tile = gameMap.getTile(r, c);
                 if (tile != null) {
-                    // 如果是空地，放置1级围墙
+                    // 如果是空地，放置1级围墙（土墙）
                     if (tile.getType() == TileType.EMPTY) {
-                        gameMap.setTileType(r, c, TileType.BRICK);
-                        tile.setHp(2);  // 初始血量
+                        gameMap.setTileType(r, c, TileType.WALL_LV1);
                         repaired = true;
                     }
-                    // 如果是围墙，恢复血量（每次+2）
-                    else if (tile.getType() == TileType.BRICK || tile.getType() == TileType.STEEL) {
+                    // 如果是可摧毁的围墙，恢复血量（每次+2）
+                    else if (tile.getType().isWall() && tile.isDestructible()) {
                         int healed = tile.heal(2);
                         if (healed > 0) {
                             repaired = true;
@@ -978,7 +1034,7 @@ public class GamePanel extends JPanel {
     }
     
     /**
-     * 升级围墙（增加血量等级）
+     * 升级围墙（升级到下一等级类型）
      */
     private void upgradeWallsNearBase() {
         Point base = gameMap.getBasePosition();
@@ -990,8 +1046,8 @@ public class GamePanel extends JPanel {
         for (int r = baseRow - 2; r <= baseRow + 2; r++) {
             for (int c = baseCol - 2; c <= baseCol + 2; c++) {
                 Tile tile = gameMap.getTile(r, c);
-                if (tile != null && (tile.getType() == TileType.BRICK || tile.getType() == TileType.STEEL)) {
-                    // 升级围墙：增加最大血量并恢复满血
+                if (tile != null && tile.getType().isWall()) {
+                    // 升级围墙到下一等级类型
                     tile.upgradeWall();
                 }
             }

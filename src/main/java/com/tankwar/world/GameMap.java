@@ -85,15 +85,20 @@ public class GameMap {
     
     private TileType charToTile(char ch) {
         switch (ch) {
-            case '#': return TileType.BRICK;
-            case 'S': return TileType.STEEL;
+            case '#': return TileType.BRICK;      // 兼容旧地图
+            case 'S': return TileType.STEEL;      // 兼容旧地图
+            case '1': return TileType.WALL_LV1;   // 土墙
+            case '2': return TileType.WALL_LV2;   // 砖墙
+            case '3': return TileType.WALL_LV3;   // 石墙
+            case '4': return TileType.WALL_LV4;   // 铁墙
+            case '5': return TileType.WALL_LV5;   // 钢墙
             case '~': return TileType.WATER;
             case '*': return TileType.GRASS;
             case 'B': return TileType.BASE;
             case 'O': return TileType.BARREL;
             case 'a': return TileType.PORTAL_A;
             case 'b': return TileType.PORTAL_B;
-            case 'I': return TileType.ICE;  // 冰面
+            case 'I': return TileType.ICE;
             default: return TileType.EMPTY;
         }
     }

@@ -1,6 +1,7 @@
 package com.tankwar.ui;
 
 import com.tankwar.util.Constants;
+import com.tankwar.world.TileType;
 import java.awt.*;
 
 /**
@@ -244,14 +245,18 @@ public class UIManager {
         boolean turretMaxed = aliveTurrets >= maxTurretsOnMap;
         boolean wallMaxed = wallLevel >= maxWallLevel;
         
+        // 获取围墙类型名称
+        String currentWallName = TileType.getWallByLevel(wallLevel).name;
+        String nextWallName = wallLevel < maxWallLevel ? TileType.getWallByLevel(wallLevel + 1).name : currentWallName;
+        
         String[][] items = {
             {"1. 自动哨戒炮", String.valueOf(Constants.PRICE_TURRET), 
              turretMaxed ? "场上已满 (" + aliveTurrets + "/" + maxTurretsOnMap + ")" : 
                           "部署炮台 (场上" + aliveTurrets + "/" + maxTurretsOnMap + ")"},
             {"2. 修复围墙", String.valueOf(Constants.PRICE_REPAIR_WALL), "修复基地周围围墙血量"},
             {"3. 升级围墙", String.valueOf(Constants.PRICE_UPGRADE_WALL), 
-             wallMaxed ? "已达最高等级 Lv." + wallLevel : 
-                        "升级围墙 Lv." + wallLevel + " → Lv." + (wallLevel + 1)},
+             wallMaxed ? "已达最高等级: " + currentWallName : 
+                        "升级围墙: " + currentWallName + " → " + nextWallName},
             {"4. 恢复生命", "200", "恢复50点HP"},
             {"5. 额外武器弹药", "150", "获得各类武器弹药"}
         };

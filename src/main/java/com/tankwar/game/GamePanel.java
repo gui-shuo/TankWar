@@ -274,6 +274,10 @@ public class GamePanel extends JPanel {
         Tile currentTile = gameMap.getTileAtPixel(player1.getX(), player1.getY());
         boolean onIce = currentTile != null && currentTile.getType() == TileType.ICE;
         
+        // 检查雨天效果（雨天也会滑动）
+        boolean isRaining = weatherSystem.getCurrentWeather() == WeatherSystem.WeatherType.RAIN;
+        boolean shouldSlide = onIce || isRaining;
+        
         // 移动
         int[] dir = input.getPlayer1Direction();
         if ((dir[0] != 0 || dir[1] != 0) && !player1.isStunned()) {
@@ -287,10 +291,11 @@ public class GamePanel extends JPanel {
                 player1.setDirection(newDir);
                 lastMoveDirection = newDir;
                 
-                // 在冰面上增加滑动速度
-                if (onIce) {
-                    slideVelocityX += newDir.dx * ICE_SLIDE_SPEED * 0.3;
-                    slideVelocityY += newDir.dy * ICE_SLIDE_SPEED * 0.3;
+                // 在冰面上或雨天增加滑动速度
+                if (shouldSlide) {
+                    double slideMultiplier = isRaining ? 0.2 : 0.3;  // 雨天滑动稍微弱一些
+                    slideVelocityX += newDir.dx * ICE_SLIDE_SPEED * slideMultiplier;
+                    slideVelocityY += newDir.dy * ICE_SLIDE_SPEED * slideMultiplier;
                 }
                 
                 // 检查碰撞后移动
@@ -311,8 +316,8 @@ public class GamePanel extends JPanel {
             }
         }
         
-        // 冰面滑动效果（即使没有按键也继续滑动）
-        if (onIce && (Math.abs(slideVelocityX) > 0.1 || Math.abs(slideVelocityY) > 0.1)) {
+        // 冰面/雨天滑动效果（即使没有按键也继续滑动）
+        if (shouldSlide && (Math.abs(slideVelocityX) > 0.1 || Math.abs(slideVelocityY) > 0.1)) {
             // 计算滑动后的位置
             double newX = player1.getX() + slideVelocityX;
             double newY = player1.getY() + slideVelocityY;
@@ -337,10 +342,11 @@ public class GamePanel extends JPanel {
             }
             
             // 应用摩擦力减速
-            slideVelocityX *= ICE_FRICTION;
-            slideVelocityY *= ICE_FRICTION;
-        } else if (!onIce) {
-            // 离开冰面快速停止
+            double friction = isRaining ? 0.88 : ICE_FRICTION;  // 雨天摩擦力稍大
+            slideVelocityX *= friction;
+            slideVelocityY *= friction;
+        } else if (!shouldSlide) {
+            // 离开滑动区域快速停止
             slideVelocityX *= 0.5;
             slideVelocityY *= 0.5;
             if (Math.abs(slideVelocityX) < 0.1) slideVelocityX = 0;

@@ -11,7 +11,7 @@ import java.util.List;
 public class MissileBullet extends Bullet {
     private Entity target;
     private double vx, vy;
-    private double turnRate = 0.08;  // 转向速率
+    private double turnRate = 0.15;  // 增强转向速率（原0.08）
     private List<? extends Entity> potentialTargets;
     private long createTime;
     private static final long LIFETIME = 5000;  // 5秒后自动销毁
@@ -53,10 +53,8 @@ public class MissileBullet extends Bullet {
     
     @Override
     public void update(double deltaTime) {
-        // 检查目标是否还有效
-        if (target != null && !target.isAlive()) {
-            findTarget();
-        }
+        // 每帧都尝试寻找/更新目标
+        findTarget();
         
         // 追踪目标
         if (target != null && target.isAlive()) {

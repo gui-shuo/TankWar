@@ -85,8 +85,8 @@ public class GameMap {
     
     private TileType charToTile(char ch) {
         switch (ch) {
-            case '#': return TileType.BRICK;      // 兼容旧地图
-            case 'S': return TileType.STEEL;      // 兼容旧地图
+            case '#': return TileType.WALL_LV1;    // 围墙从1级土墙开始
+            case 'S': return TileType.WALL_LV5;    // S为最高级钢墙
             case '1': return TileType.WALL_LV1;   // 土墙
             case '2': return TileType.WALL_LV2;   // 砖墙
             case '3': return TileType.WALL_LV3;   // 石墙
